@@ -1,4 +1,5 @@
-/** MARTIAN · NASA Mars Trek exploratory map. No synthetic map or operational EVA verdicts. */
+/** MARTIAN · evidence-first NASA/USGS orbital map and numeric terrain inspector. */
+import { SOURCE as DEM_SOURCE, verifyImage, sampleTerrain } from './terrain-core.js';
 const ICONS={
 'globe-2':'<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a16 16 0 0 1 0 18M12 3a16 16 0 0 0 0 18"/>',
 'globe':'<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a16 16 0 0 1 0 18M12 3a16 16 0 0 0 0 18"/>',
@@ -47,8 +48,9 @@ const PLACES=[
  {name:'Olympus Mons',sub:'Volcanic summit · approximate center',lat:18.65,lon:-133.80,zoom:7,short:'Olympus'},
  {name:'Viking 1 landing',sub:'Chryse Planitia · approximate',lat:22.480,lon:-48.000,zoom:9,short:'Viking 1'},
 ];
-const state={center:{...JEZERO},zoom:9,base:'mola',ctx:true,hirise:false,selected:{...JEZERO},mode:'inspect',measure:[],tiles:new Map(),loaded:0,failed:0,proxyFailures:0,currentTab:'overview',currentPanel:'explore',logs:[],worldWidth:0,mouse:null,drag:null,pointers:new Map(),pinch:null};
+const state={center:{...JEZERO},zoom:9,base:'viking',ctx:false,hirise:false,ctxOpacity:76,selected:{...JEZERO},mode:'inspect',measure:[],tiles:new Map(),loaded:0,failed:0,proxyFailures:0,currentTab:'overview',currentPanel:'explore',logs:[],worldWidth:0,mouse:null,drag:null,pointers:new Map(),pinch:null};
 const map=el('mapCanvas'),tileWorld=el('tileWorld'),canvas=el('overlayCanvas'),poiOverlay=el('poiOverlay');
+const terrain={image:null,source:null,loading:false,nonce:0};
 const localHost=/^(localhost|127\.0\.0\.1|0\.0\.0\.0)$/i.test(location.hostname);
 const preferProxy=!localHost && location.protocol==='https:';
 function log(message){let s=`${new Date().toLocaleTimeString('en-GB',{hour12:false})} ${message}`;state.logs.push(s);if(state.logs.length>16)state.logs.shift();el('connectionLogs').textContent=state.logs.join('\n');}
@@ -70,7 +72,7 @@ function makeTile(key,layer,z,row,col,x,y,tileSize){let img=document.createEleme
  let fallbackTried=false;const firstSrc=getTileUrl(layer,z,row,col,preferProxy);
  img.addEventListener('load',()=>{state.loaded++;if(state.loaded===1){log('First NASA image tile loaded.');}setStatus();});
  img.addEventListener('error',()=>{if(preferProxy&&!fallbackTried){fallbackTried=true;state.proxyFailures++;img.src=getTileUrl(layer,z,row,col,false);return;}state.failed++;img.style.display='none';if(state.failed<5)log(`Tile unavailable: ${layer} / ${z}/${row}/${col}`);setStatus();});
- img.src=firstSrc;tileWorld.appendChild(img);state.tiles.set(key,{img,layer,z,row,col});}
+ img.style.opacity=layer==='ctx'?String(state.ctxOpacity/100):'1';img.src=firstSrc;tileWorld.appendChild(img);state.tiles.set(key,{img,layer,z,row,col});}
 function renderTiles(){let need=new Set(),mapW=map.clientWidth,mapH=map.clientHeight;
  if(!mapW||!mapH)return;
  const center=project(state.center.lat,state.center.lon,state.zoom);
@@ -104,6 +106,15 @@ function renderOverlay(){const w=map.clientWidth,h=map.clientHeight,dpr=Math.min
  const lonWest=state.center.lon-w/world(state.zoom).w*180,lonEast=state.center.lon+w/world(state.zoom).w*180;
  for(let lon=Math.floor(lonWest/gridSpacing)*gridSpacing;lon<=lonEast;lon+=gridSpacing){const p=screen(state.center.lat,lon);if(p.x<0||p.x>w)continue;ctx.beginPath();ctx.moveTo(p.x,0);ctx.lineTo(p.x,h);ctx.stroke()}
  ctx.setLineDash([]);
+ // Declared bounding rectangles are source coverage indicators, NOT pixel-validity masks.
+ for(const key of ['ctx','hirise']) {if((key==='ctx'&&!state.ctx)||(key==='hirise'&&!state.hirise))continue;
+   const b=LAYERS[key].bounds,topLeft=screen(b[3],b[0]),bottomRight=screen(b[1],b[2]);
+   const x=topLeft.x,y=topLeft.y,width=bottomRight.x-x,height=bottomRight.y-y;
+   if(width>0&&height>0&&x<w&&x+width>0&&y<h&&y+height>0){
+     ctx.save();ctx.strokeStyle=key==='ctx'?'#ffe3bcbb':'#b3e1c9cc';ctx.lineWidth=1.4;ctx.setLineDash([8,5]);ctx.strokeRect(x,y,width,height);
+     if(width>100&&y>4&&y<h-20){ctx.fillStyle='#151d19dd';ctx.fillRect(x+6,y+6,Math.min(width-12,165),21);ctx.fillStyle='#ffdebd';ctx.font='600 10px DM Sans';ctx.fillText(key.toUpperCase()+' · DATA COVERAGE',x+13,y+20)}ctx.restore();
+   }
+ }
  if(state.measure.length===2){ctx.strokeStyle='#d1edb8';ctx.lineWidth=3;ctx.setLineDash([8,8]);ctx.beginPath();for(let i=0;i<=80;i++){let pos=screen(...pointToScreenArgs(interpolateGreatCircle(state.measure[0],state.measure[1],i/80)));if(i===0)ctx.moveTo(pos.x,pos.y);else ctx.lineTo(pos.x,pos.y)}ctx.stroke();ctx.setLineDash([])}
  state.measure.forEach((p,i)=>{let s=screen(p.lat,p.lon);ctx.beginPath();ctx.arc(s.x,s.y,8,0,Math.PI*2);ctx.fillStyle=i===0?'#f59a77':'#b7e2ac';ctx.fill();ctx.lineWidth=3;ctx.strokeStyle='#1d261f';ctx.stroke();ctx.fillStyle='#f9f1e5';ctx.font='bold 11px DM Sans';ctx.fillText(i===0?'A':'B',s.x+12,s.y+4)});
  if(state.selected){let s=screen(state.selected.lat,state.selected.lon);ctx.strokeStyle='#e9d7bb';ctx.lineWidth=1.4;ctx.beginPath();ctx.arc(s.x,s.y,12,0,Math.PI*2);ctx.stroke();ctx.beginPath();ctx.moveTo(s.x-21,s.y);ctx.lineTo(s.x-14,s.y);ctx.moveTo(s.x+14,s.y);ctx.lineTo(s.x+21,s.y);ctx.moveTo(s.x,s.y-21);ctx.lineTo(s.x,s.y-14);ctx.moveTo(s.x,s.y+14);ctx.lineTo(s.x,s.y+21);ctx.stroke()}
@@ -113,7 +124,7 @@ function renderPOI(){poiOverlay.replaceChildren();for(const p of PLACES){let s=s
 function updateScale(){let kmPx=(360/world(state.zoom).w)*RAD*R_MARS_KM*Math.max(.01,Math.cos(state.center.lat*RAD));let target=95*kmPx;if(target<=0)return;let power=10**Math.floor(Math.log10(target));let m=[1,2,5,10].map(a=>a*power).filter(x=>x<=target).pop()||power;el('scaleCaption').textContent=m<1?`${Math.round(m*1000)} m`:`${m>=10?Math.round(m):m.toFixed(1)} km`;el('scaleCaption').title='Scale approximated at map center latitude; map does not show vertical distances';document.querySelector('.scale-track').style.width=Math.max(15,m/kmPx)+'px';}
 function updateView(){el('zoomText').textContent=String(state.zoom).padStart(2,'0');el('sectorCoords').textContent=`${formatLat(state.center.lat,2)} / ${formatLon(state.center.lon,2)}`;el('sectorName').textContent=state.zoom>=8&&Math.abs(state.center.lat-JEZERO.lat)<2&&Math.abs(state.center.lon-JEZERO.lon)<2?'JEZERO CRATER':'MARS SURFACE';updateScale();}
 let raf=0;function draw(){if(raf)return;raf=requestAnimationFrame(()=>{raf=0;renderTiles();renderOverlay();renderPOI();updateView();});}
-function selectAt(p){state.selected={lat:p.lat,lon:p.lon};el('selectedCoordinates').innerHTML=`${formatLat(p.lat)} <span>${formatLon(p.lon)}</span>`;draw();if(state.mode==='measure')addMeasurePoint(p);}
+function selectAt(p){state.selected={lat:p.lat,lon:p.lon};el('selectedCoordinates').innerHTML=`${formatLat(p.lat)} <span>${formatLon(p.lon)}</span>`;draw();if(terrain.image)updateTerrainAt(p);if(state.mode==='measure')addMeasurePoint(p);}
 function addMeasurePoint(p){if(state.measure.length>=2)state.measure=[];state.measure.push({lat:p.lat,lon:p.lon});let a=state.measure[0],b=state.measure[1];el('pointA').textContent=a?cleanPoint(a):'Select start point';el('pointB').textContent=b?cleanPoint(b):'Select destination';let km=b?greatCircleKm(a,b):null;el('distanceResult').textContent=km===null?'—':km<1?`${Math.round(km*1000).toLocaleString('en-US')} m`:`${km.toFixed(2)} km`;el('measureToggle').querySelector('span').textContent=b?'MEASURE AGAIN':a?'SELECT DESTINATION':'START MEASUREMENT';el('measureRight').querySelector('span').textContent=b?'MEASURE AGAIN':a?'SELECT DESTINATION':'SELECT TWO POINTS';if(b){notify('Geodesic distance calculated. This is not a safe or walkable route.');state.mode='inspect';map.classList.remove('is-measuring')}draw();}
 function startMeasure(){state.measure=[];state.mode='measure';map.classList.add('is-measuring');changeTab('measure');el('pointA').textContent='Select start point';el('pointB').textContent='Select destination';el('distanceResult').textContent='—';el('measureToggle').querySelector('span').textContent='SELECT START POINT';el('measureRight').querySelector('span').textContent='SELECT START POINT';notify('Click a start point, then a destination.');draw();}
 function clearMeasure(){state.measure=[];state.mode='inspect';map.classList.remove('is-measuring');el('pointA').textContent='Select start point';el('pointB').textContent='Select destination';el('distanceResult').textContent='—';el('measureToggle').querySelector('span').textContent='START MEASUREMENT';el('measureRight').querySelector('span').textContent='SELECT TWO POINTS';draw();}
@@ -122,11 +133,68 @@ function changeBase(name){if(name===state.base)return;state.base=name;state.load
 function changeTab(name){state.currentTab=name;document.querySelectorAll('.tab').forEach(e=>{let active=e.dataset.tab===name;e.classList.toggle('active',active);e.setAttribute('aria-selected',String(active))});for(const x of ['overview','measure','sources'])el('tab'+x[0].toUpperCase()+x.slice(1)).classList.toggle('hidden',x!==name);if(window.innerWidth<=1080)document.querySelector('.right-panel').classList.add('open');}
 function changePanel(name){state.currentPanel=name;document.querySelectorAll('.rail-item[data-panel]').forEach(e=>e.classList.toggle('selected',e.dataset.panel===name));if(name==='measure'){startMeasure();document.querySelector('.left-panel').classList.remove('open');return;}if(name==='places'){el('panelPlaces').scrollIntoView({block:'start',behavior:'smooth'});}if(name==='sources'){changeTab('sources');document.querySelector('.left-panel').classList.remove('open');return;}if(name==='explore'){el('panelExplore').scrollIntoView({block:'start',behavior:'smooth'});}if(window.innerWidth<=760)document.querySelector('.left-panel').classList.add('open');}
 function populatePlaces(filter=''){let box=el('placeList');box.replaceChildren();let matches=PLACES.filter(p=>(p.name+' '+p.sub).toLowerCase().includes(filter.toLowerCase()));for(const p of matches){let b=document.createElement('button');b.className='place-item';b.innerHTML='<i data-icon="map-pin"></i><span class="place-info"><strong></strong><small></small></span><i class="go-arrow" data-icon="arrow-up-right"></i>';b.querySelector('strong').textContent=p.name;b.querySelector('small').textContent=p.sub;b.onclick=()=>{jump(p.lat,p.lon,p.zoom);selectAt(p);if(window.innerWidth<=760)el('leftPanel').classList.remove('open');};box.appendChild(b)}if(!matches.length){let n=document.createElement('p');n.className='source-fine';n.textContent='No matching sites in the small verified-location catalog.';box.appendChild(n)}installIcons(box);}
-function populateSources(){let sources=[['MOLA colour relief','Global terrain visualization · MGS',LAYERS.mola.id],['Viking mosaic','Global historic surface imagery · Viking',LAYERS.viking.id],['CTX controlled Jezero','Mapped local imagery · MRO',LAYERS.ctx.id],['HiRISE controlled Jezero','High-detail local imagery · MRO',LAYERS.hirise.id]];
- for(const [name,desc,id] of sources){let div=document.createElement('div');div.className='ledger-item';div.innerHTML=`<div class="ledger-title"><span></span><i data-icon="shield-check"></i></div><p></p><code></code><a href="https://trek.nasa.gov/tiles/apidoc/trekAPI.html?body=mars" target="_blank" rel="noopener">NASA WMTS SERVICE <i data-icon="arrow-up-right"></i></a>`;div.querySelector('.ledger-title span').textContent=name;div.querySelector('p').textContent=desc;div.querySelector('code').textContent=id;el('sourceLedger').appendChild(div)}installIcons(el('sourceLedger'));}
+function populateSources(){let sources=[['Viking mosaic','Global historic surface imagery · Viking',LAYERS.viking.id],['MOLA colour relief','Global terrain visualization · MGS',LAYERS.mola.id],['CTX controlled Jezero','Mapped local imagery · MRO',LAYERS.ctx.id],['HiRISE controlled Jezero','High-detail local imagery · MRO',LAYERS.hirise.id],['USGS CTX numerical DTM','20 m numerical elevation; downloaded on demand',DEM_SOURCE.id]];
+ for(const [name,desc,id] of sources){let div=document.createElement('div');div.className='ledger-item';div.innerHTML=`<div class="ledger-title"><span></span><i data-icon="shield-check"></i></div><p></p><code></code><a href="https://trek.nasa.gov/tiles/apidoc/trekAPI.html?body=mars" target="_blank" rel="noopener">NASA WMTS SERVICE <i data-icon="arrow-up-right"></i></a>`;div.querySelector('.ledger-title span').textContent=name;div.querySelector('p').textContent=desc;div.querySelector('code').textContent=id;if(id===DEM_SOURCE.id){const link=div.querySelector('a');link.href=DEM_SOURCE.reference;link.firstChild.textContent='USGS SOURCE DATA ';}el('sourceLedger').appendChild(div)}installIcons(el('sourceLedger'));}
+function setDemStatus(message,error=false){let n=el('demStatus');n.textContent=message;n.classList.toggle('error',error)}
+let decoderPromise=null;
+function ensureGeoTIFF(){
+ if(window.GeoTIFF?.fromArrayBuffer)return Promise.resolve(window.GeoTIFF);
+ if(decoderPromise)return decoderPromise;
+ decoderPromise=new Promise((resolve,reject)=>{
+   const tag=document.createElement('script');tag.src='https://cdn.jsdelivr.net/npm/geotiff@2.1.0/dist-browser/geotiff.js';tag.async=true;
+   const timeout=setTimeout(()=>{tag.remove();reject(new Error('GeoTIFF decoder CDN timed out'))},18000);
+   tag.onload=()=>{clearTimeout(timeout);window.GeoTIFF?.fromArrayBuffer?resolve(window.GeoTIFF):reject(new Error('GeoTIFF decoder unavailable'))};
+   tag.onerror=()=>{clearTimeout(timeout);reject(new Error('GeoTIFF decoder failed to load'))};document.head.appendChild(tag);
+ }).catch(e=>{decoderPromise=null;throw e});
+ return decoderPromise;
+}
+async function updateTerrainAt(point){
+ const id=++terrain.nonce;if(!terrain.image)return;
+ el('elevationValue').textContent='…';el('slopeValue').textContent='…';el('elevationNote').textContent='Reading CTX raster';el('slopeNote').textContent='3×3 terrain gradient';
+ try{
+  const sample=await sampleTerrain(terrain.image,point.lat,point.lon);
+  if(id!==terrain.nonce)return;
+  if(sample.status==='outside'){el('elevationValue').textContent='—';el('elevationNote').textContent='Outside Jezero CTX raster';el('slopeValue').textContent='—';el('slopeNote').textContent='No local DEM coverage';return}
+  if(sample.status==='nodata'){el('elevationValue').textContent='—';el('elevationNote').textContent='Missing source elevation';el('slopeValue').textContent='—';el('slopeNote').textContent='No valid source data';return}
+  el('elevationValue').textContent=`${Math.round(sample.elevation).toLocaleString('en-US')} m`;
+  el('elevationNote').textContent='USGS CTX DTM · reference datum';
+  el('slopeValue').textContent=sample.slopeDegrees===undefined?'—':`${sample.slopeDegrees.toFixed(1)}°`;
+  el('slopeNote').textContent=sample.slopeDegrees===undefined?'Neighbors missing':'Derived · 3×3 Horn slope';
+ }catch(e){if(id!==terrain.nonce)return;el('elevationValue').textContent='—';el('slopeValue').textContent='—';el('elevationNote').textContent='Unable to read raster';el('slopeNote').textContent=String(e.message).slice(0,65);log('DEM sample failed: '+String(e.message))}
+}
+async function installDEM(buffer,source){
+ const GeoTIFF=await ensureGeoTIFF();
+ const tiff=await GeoTIFF.fromArrayBuffer(buffer);
+ const image=await tiff.getImage();
+ const meta=verifyImage(image); // fail closed: never show synthetic or wrongly referenced data
+ terrain.image=image;terrain.source=source;
+ setDemStatus(`Loaded ${meta.width}×${meta.height} numerical cells · ${meta.pixelMeters.toFixed(1)} m grid · ${source}`);
+ log('USGS Jezero CTX DTM geometry verified: '+meta.width+'x'+meta.height);
+ el('loadDemBtn').querySelector('span').textContent='RELOAD USGS CTX DEM';
+ await updateTerrainAt(state.selected);
+ notify('Numerical Jezero terrain available. Click map to inspect actual DEM cells.');
+}
+async function loadDEM(file){
+ if(terrain.loading)return;
+ terrain.loading=true;el('loadDemBtn').disabled=true;setDemStatus('Downloading numerical terrain and checking source geometry…');
+ try{
+   let buffer,source;
+   if(file){if(file.size>18_000_000)throw new Error('File too large for expected USGS 20 m CTX product');buffer=await file.arrayBuffer();source='Local file; provenance not independently authenticated';}
+   else{
+     const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),25000);
+     try{const res=await fetch('/api/dem/ctx',{signal:controller.signal,cache:'force-cache'});if(!res.ok)throw new Error(`USGS data proxy returned HTTP ${res.status}`);buffer=await res.arrayBuffer();source='USGS archive via Cloudflare';}
+     finally{clearTimeout(timer)}
+   }
+   await installDEM(buffer,source);
+ }catch(e){setDemStatus(`DEM unavailable: ${e.message}. Download the official TIFF and use local upload.`,true);log('DEM import error: '+e.message);notify('DEM failed to load. Check source status or upload the official TIFF.');}
+ finally{terrain.loading=false;el('loadDemBtn').disabled=false;}
+}
 function startInput(){populatePlaces();populateSources();
  document.querySelectorAll('.dataset-card').forEach(b=>b.addEventListener('click',()=>changeBase(b.dataset.base)));
- el('ctxToggle').onchange=e=>{state.ctx=e.target.checked;draw();notify(state.ctx?'CTX Jezero overlay enabled':'CTX overlay hidden')};el('hiriseToggle').onchange=e=>{state.hirise=e.target.checked;if(state.hirise&&Math.abs(state.center.lat-JEZERO.lat)>2)jump(JEZERO.lat,JEZERO.lon,11);else if(state.hirise&&state.zoom<11)jump(state.center.lat,state.center.lon,11);draw();notify(state.hirise?'HiRISE Jezero requests enabled':'HiRISE overlay hidden')};
+ el('ctxToggle').onchange=e=>{state.ctx=e.target.checked;draw();notify(state.ctx?'CTX observation footprint shown; background imagery remains visible':'CTX high-resolution overlay hidden')};el('hiriseToggle').onchange=e=>{state.hirise=e.target.checked;if(state.hirise&&Math.abs(state.center.lat-JEZERO.lat)>2)jump(JEZERO.lat,JEZERO.lon,11);else if(state.hirise&&state.zoom<11)jump(state.center.lat,state.center.lon,11);draw();notify(state.hirise?'HiRISE Jezero requests enabled':'HiRISE overlay hidden')};
+ el('ctxOpacityRange').oninput=e=>{state.ctxOpacity=Number(e.target.value);el('ctxOpacityText').textContent=state.ctxOpacity+'%';for(const tile of state.tiles.values())if(tile.layer==='ctx')tile.img.style.opacity=String(state.ctxOpacity/100);};
+ el('focusJezeroDetail').onclick=()=>{jump(JEZERO.lat,JEZERO.lon,12);state.ctx=true;el('ctxToggle').checked=true;draw();notify('Jezero CTX imagery selected. Outline indicates published footprint.');};
+ el('loadDemBtn').onclick=()=>loadDEM();el('demFile').onchange=e=>{const file=e.target.files?.[0];if(file)loadDEM(file);e.target.value='';};
  el('placeSearch').oninput=e=>populatePlaces(e.target.value);
  document.querySelectorAll('.rail-item[data-panel]').forEach(b=>b.onclick=()=>changePanel(b.dataset.panel));
  document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>changeTab(b.dataset.tab));
@@ -151,5 +219,5 @@ function setupPointer(){let last={x:0,y:0};map.addEventListener('pointerdown',e=
  map.addEventListener('dblclick',e=>{e.preventDefault();const b=map.getBoundingClientRect();zoomAt(1,e.clientX-b.left,e.clientY-b.top)});
  const resize=new ResizeObserver(()=>draw());resize.observe(map);
 }
-startInput();setupPointer();log('NASA Mars Trek source: https://trek.nasa.gov/tiles/apidoc/trekAPI.html?body=mars');log('Connection mode: '+(preferProxy?'Cloudflare Pages Function proxy, with direct NASA fallback':'direct NASA image requests'));
+startInput();setupPointer();log('NASA Mars Trek source: https://trek.nasa.gov/tiles/apidoc/trekAPI.html?body=mars');log('Connection mode: '+(preferProxy?'Cloudflare proxy with direct NASA fallback':'direct NASA image requests'));
 setStatus();draw();setTimeout(()=>{if(state.loaded===0){el('emptyState').hidden=false;log('No NASA tiles received yet. Check source connectivity.');setStatus();}},8500);

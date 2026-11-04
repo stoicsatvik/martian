@@ -22,27 +22,36 @@
     <div class="top-right"><a href="https://trek.nasa.gov/mars/" target="_blank" rel="noopener" class="top-link"><i data-icon="external-link"></i> NASA MARS TREK</a><span class="top-line"></span><button id="openHelp" class="icon-button help-button" aria-label="About the project"><i data-icon="help-circle"></i></button><button id="mobileMenu" class="icon-button mobile-menu" aria-label="Toggle explorer sidebar"><i data-icon="menu"></i></button></div>
   </header>
   <div class="body-grid">
-    <nav class="rail" aria-label="Workspace tools"><div class="rail-top"><button class="rail-item selected" data-panel="explore" aria-label="Explore Mars" title="Explore Mars"><i data-icon="globe-2"></i><small>Explore</small></button><button class="rail-item" data-panel="measure" aria-label="Measure distance" title="Measure distance"><i data-icon="ruler"></i><small>Measure</small></button><button class="rail-item" data-panel="places" aria-label="Mission sites" title="Mission sites"><i data-icon="map-pin"></i><small>Sites</small></button><button class="rail-item" data-panel="sources" aria-label="Source catalog" title="Source catalog"><i data-icon="database"></i><small>Sources</small></button></div><div class="rail-bottom"><span class="rail-rule"></span><button class="rail-item" id="railHelp" title="Help" aria-label="Help"><i data-icon="circle-help"></i></button><div class="version-tag">V 0.1</div></div></nav>
+    <nav class="rail" aria-label="Workspace tools"><div class="rail-top"><button class="rail-item selected" data-panel="explore" aria-label="Explore Mars" title="Explore Mars"><i data-icon="globe-2"></i><small>Explore</small></button><button class="rail-item" data-panel="measure" aria-label="Measure distance" title="Measure distance"><i data-icon="ruler"></i><small>Measure</small></button><button class="rail-item" data-panel="places" aria-label="Mission sites" title="Mission sites"><i data-icon="map-pin"></i><small>Sites</small></button><button class="rail-item" data-panel="sources" aria-label="Source catalog" title="Source catalog"><i data-icon="database"></i><small>Sources</small></button></div><div class="rail-bottom"><span class="rail-rule"></span><button class="rail-item" id="railHelp" title="Help" aria-label="Help"><i data-icon="circle-help"></i></button><div class="version-tag">V 0.2</div></div></nav>
     <aside class="left-panel" id="leftPanel">
-      <div class="panel-section intro"><div class="tiny-eyebrow"><span class="micro-line"></span> THE EXPLORER</div><h1>Traverse the <em>unknown.</em></h1><p>Explore Mars using authentic NASA orbital datasets. Inspect locations. Compare layers. Measure the planet.</p></div>
+      <div class="panel-section intro"><div class="tiny-eyebrow"><span class="micro-line"></span> THE EXPLORER</div><h1>Traverse the <em>unknown.</em></h1><p>Study real NASA orbital images, inspect Martian coordinates and load USGS numerical terrain. No invented mission safety ratings.</p></div>
       <div class="panel-section" id="panelExplore">
         <div class="panel-heading"><span>01 <b>/</b> DATA SOURCES</span><i data-icon="layers-3"></i></div>
         <div class="field-title">Global basemap</div>
-        <button class="dataset-card selected" id="baseMola" data-base="mola"><span class="source-art mola-art"><i data-icon="mountain"></i></span><span class="source-copy"><strong>MOLA relief</strong><small>Topographic hillshade · MGS</small></span><span class="selection-ring"></span></button>
-        <button class="dataset-card" id="baseViking" data-base="viking"><span class="source-art viking-art"><i data-icon="orbit"></i></span><span class="source-copy"><strong>Viking mosaic</strong><small>Orbital surface imagery · Viking</small></span><span class="selection-ring"></span></button>
+        <button class="dataset-card" id="baseMola" data-base="mola"><span class="source-art mola-art"><i data-icon="mountain"></i></span><span class="source-copy"><strong>MOLA relief</strong><small>Topographic hillshade · MGS</small></span><span class="selection-ring"></span></button>
+        <button class="dataset-card selected" id="baseViking" data-base="viking"><span class="source-art viking-art"><i data-icon="orbit"></i></span><span class="source-copy"><strong>Viking mosaic</strong><small>Orbital surface imagery · Viking</small></span><span class="selection-ring"></span></button>
         <div class="section-divider"></div>
         <div class="field-title">High-resolution detail <span class="context-tag">JEZERO ONLY</span></div>
-        <label class="toggle-card"><span class="toggle-symbol ctx-symbol"><i data-icon="scan-line"></i></span><span><strong>CTX controlled</strong><small>6 m mapped imagery</small></span><input type="checkbox" id="ctxToggle" checked aria-label="Show CTX high-resolution layer"><span class="switch-track"></span></label>
+        <label class="toggle-card"><span class="toggle-symbol ctx-symbol"><i data-icon="scan-line"></i></span><span><strong>CTX controlled</strong><small>6 m mapped imagery</small></span><input type="checkbox" id="ctxToggle" aria-label="Show CTX high-resolution layer"><span class="switch-track"></span></label>
         <label class="toggle-card"><span class="toggle-symbol hirise-symbol"><i data-icon="focus"></i></span><span><strong>HiRISE controlled</strong><small>0.25 m source mosaic</small></span><input type="checkbox" id="hiriseToggle" aria-label="Show HiRISE high-resolution layer"><span class="switch-track"></span></label>
-        <p class="source-fine">Image layers are observations, not elevation samples. Layer coverage and zoom availability vary.</p>
+        <div class="coverage-note"><i data-icon="badge-info"></i><span>Detail images cover only parts of Jezero. Their edges are real observation boundaries, not missing UI.</span></div>
+        <div class="blend-control"><div><span>CTX IMAGE STRENGTH</span><strong id="ctxOpacityText">76%</strong></div><input id="ctxOpacityRange" aria-label="CTX image opacity" type="range" min="30" max="100" value="76" step="2"></div>
+        <button id="focusJezeroDetail" class="detail-link"><i data-icon="focus"></i> FOCUS JEZERO DETAIL <i data-icon="arrow-up-right"></i></button>
+        <div class="section-divider"></div><div class="panel-heading terrain-section-title"><span>02 <b>/</b> TERRAIN SCIENCE</span><i data-icon="database"></i></div>
+        <div class="terrain-card"><div class="terrain-card-head"><span class="terrain-source-icon"><i data-icon="mountain"></i></span><div><strong>USGS CTX elevation</strong><small>20 m source grid · Jezero only</small></div></div>
+        <p>Load the official numerical DEM to inspect elevation and local 3×3 slope. This is a measured raster, not a hazard prediction.</p>
+        <button class="load-dem" id="loadDemBtn"><i data-icon="database"></i><span>LOAD NUMERICAL TERRAIN</span><i data-icon="arrow-up-right"></i></button>
+        <label class="dem-upload">OR LOAD THE OFFICIAL .TIF LOCALLY<input id="demFile" type="file" accept=".tif,.tiff,image/tiff" hidden></label>
+        <div class="dem-status" id="demStatus" role="status" aria-live="polite">DEM not loaded · source: USGS Mars 2020 TRN</div>
+        </div>
       </div>
       <div class="panel-section section-place" id="panelPlaces">
-        <div class="panel-heading"><span>02 <b>/</b> DESTINATIONS</span><i data-icon="compass"></i></div>
+        <div class="panel-heading"><span>03 <b>/</b> DESTINATIONS</span><i data-icon="compass"></i></div>
         <div class="input-wrap"><i data-icon="search"></i><input id="placeSearch" type="search" placeholder="Find a landing site..." autocomplete="off" aria-label="Search named locations"/><kbd>/</kbd></div>
         <div class="place-list" id="placeList"></div>
       </div>
       <div class="panel-section tool-section" id="panelMeasure">
-        <div class="panel-heading"><span>03 <b>/</b> SURVEY TOOL</span><i data-icon="ruler"></i></div>
+        <div class="panel-heading"><span>04 <b>/</b> SURVEY TOOL</span><i data-icon="ruler"></i></div>
         <p class="panel-help">Pick two places to calculate surface separation using the radius of Mars. Not a walkable path.</p>
         <button class="primary-action" id="measureToggle"><i data-icon="move-up-right"></i><span>START MEASUREMENT</span><i data-icon="arrow-up-right"></i></button>
         <button class="text-action" id="clearMeasure"><i data-icon="rotate-ccw"></i> Clear measurement</button>
@@ -66,17 +75,17 @@
       <div class="map-toast" id="mapToast" role="status" aria-live="polite" hidden></div>
     </main>
     <aside class="right-panel">
-      <div class="right-header"><div><div class="tiny-eyebrow">LIVE WORKSPACE</div><h2>Surface intelligence<span>.</span></h2></div><button class="icon-button" id="resetSelection" title="Clear location selection" aria-label="Clear location selection"><i data-icon="rotate-ccw"></i></button></div>
+      <div class="right-header"><div><div class="tiny-eyebrow">NASA SCIENCE WORKSPACE</div><h2>Surface intelligence<span>.</span></h2></div><button class="icon-button" id="resetSelection" title="Clear location selection" aria-label="Clear location selection"><i data-icon="rotate-ccw"></i></button></div>
       <div class="tabbar" role="tablist"><button class="tab active" data-tab="overview" role="tab" aria-selected="true">Overview</button><button class="tab" data-tab="measure" role="tab" aria-selected="false">Measure</button><button class="tab" data-tab="sources" role="tab" aria-selected="false">Provenance</button></div>
       <div class="inspector-scroll">
         <div class="tab-content" id="tabOverview">
           <div class="selection-label"><span class="live-glyph"></span> SELECTED COORDINATE</div>
           <div class="coordinates-large" id="selectedCoordinates">18.4447° N <span>77.4509° E</span></div>
-          <div class="meta-row"><span>PLANETARY BODY</span><strong>MARS</strong></div><div class="meta-row"><span>REFERENCE RADIUS</span><strong>3,389.5 km</strong></div><div class="meta-row"><span>BASE IMAGE SOURCE</span><strong id="baseSourceShort">MGS / MOLA</strong></div>
+          <div class="meta-row"><span>PLANETARY BODY</span><strong>MARS</strong></div><div class="meta-row"><span>REFERENCE RADIUS</span><strong>3,389.5 km</strong></div><div class="meta-row"><span>BASE IMAGE SOURCE</span><strong id="baseSourceShort">VIKING / VIS</strong></div>
           <button class="subtle-button" id="copyCoords"><i data-icon="copy"></i> COPY COORDINATES</button>
           <div class="data-break"><span>SCIENTIFIC MEASUREMENTS</span><i data-icon="activity"></i></div>
-          <div class="metric-grid"><div class="metric"><span>ELEVATION</span><b>—</b><small>DEM not ingested</small></div><div class="metric"><span>LOCAL SLOPE</span><b>—</b><small>Awaiting raster</small></div><div class="metric"><span>RADIATION</span><b>—</b><small>No local reading</small></div><div class="metric"><span>TRAVERSABILITY</span><b>—</b><small>Not assessed</small></div></div>
-          <div class="truth-card"><i data-icon="badge-info"></i><div><strong>Scientific integrity</strong><p>The live map displays real archived orbital imagery. It does not retrieve numerical elevation, hazard probabilities, or current Mars conditions.</p></div></div>
+          <div class="metric-grid"><div class="metric"><span>ELEVATION</span><b id="elevationValue">—</b><small id="elevationNote">Load USGS CTX DEM</small></div><div class="metric"><span>LOCAL SLOPE</span><b id="slopeValue">—</b><small id="slopeNote">Not yet calculated</small></div><div class="metric"><span>RADIATION</span><b>—</b><small>No local reading</small></div><div class="metric"><span>TRAVERSABILITY</span><b>—</b><small>Not assessed</small></div></div>
+          <div class="truth-card"><i data-icon="badge-info"></i><div><strong>Scientific integrity</strong><p>Map tiles are archived NASA observations. Elevation and slope appear only when a verified USGS numerical raster is loaded. No astronaut-safe route verdicts are produced.</p></div></div>
         </div>
         <div class="tab-content hidden" id="tabMeasure">
           <div class="selection-label">MEASUREMENT / SURFACE GEOMETRY</div>
@@ -96,6 +105,6 @@
     </aside>
   </div>
 </div>
-<div class="modal-backdrop" id="helpModal" hidden><section class="help-dialog" role="dialog" aria-modal="true" aria-labelledby="helpTitle"><button id="closeHelp" class="modal-close" aria-label="Close"><i data-icon="x"></i></button><div class="tiny-eyebrow">INSTRUMENT BRIEF / 001</div><h2 id="helpTitle">A map that knows what it <em>doesn't</em> know.</h2><p>MARTIAN is a pre-hackathon exploratory viewer for NASA Mars Trek orbital image layers. It is not a validated EVA navigation model.</p><div class="help-grid"><div><strong>01. EXAMINE</strong><span>Drag to pan and scroll to zoom. Tap Jezero, Gale, or Olympus to jump between sites.</span></div><div><strong>02. MEASURE</strong><span>Click two positions to measure spherical surface separation using Mars's mean radius.</span></div><div><strong>03. VERIFY</strong><span>Use Provenance to inspect the NASA layer IDs and check whether source tiles loaded.</span></div></div><a href="https://trek.nasa.gov/tiles/apidoc/trekAPI.html?body=mars" target="_blank" rel="noopener">OFFICIAL NASA MARS TREK DOCUMENTATION <i data-icon="arrow-up-right"></i></a></section></div>
+<div class="modal-backdrop" id="helpModal" hidden><section class="help-dialog" role="dialog" aria-modal="true" aria-labelledby="helpTitle"><button id="closeHelp" class="modal-close" aria-label="Close"><i data-icon="x"></i></button><div class="tiny-eyebrow">INSTRUMENT BRIEF / 001</div><h2 id="helpTitle">A map that knows what it <em>doesn't</em> know.</h2><p>MARTIAN is a research viewer for NASA Mars Trek imagery and optional USGS numerical terrain. It is not a validated EVA navigation model.</p><div class="help-grid"><div><strong>01. EXAMINE</strong><span>Drag to pan and scroll to zoom. Tap Jezero, Gale, or Olympus to jump between sites.</span></div><div><strong>02. MEASURE</strong><span>Click two positions to measure spherical surface separation using Mars's mean radius.</span></div><div><strong>03. VERIFY</strong><span>Use Provenance to inspect the NASA layer IDs and check whether source tiles loaded.</span></div></div><a href="https://trek.nasa.gov/tiles/apidoc/trekAPI.html?body=mars" target="_blank" rel="noopener">OFFICIAL NASA MARS TREK DOCUMENTATION <i data-icon="arrow-up-right"></i></a></section></div>
 </body>
 </html>

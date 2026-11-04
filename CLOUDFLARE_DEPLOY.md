@@ -55,3 +55,25 @@ The exact imagery extension for local Jezero tile layers must be read from WMTS 
 ## Future scientific integration (after rules approval)
 
 Use numerical USGS Jezero CTX DTM + matched orthorectified image, preserve Mars CRS/projection metadata, pixel footprints, NoData masking, vertical reference and uncertainties. Only then compute terrain slopes, routing constraints and mission costs. Validation work should include return-trip accounting and independent check against Ayan's notes.
+
+
+## MARTIAN v0.2: Workers **or** Pages
+
+The repository now contains `wrangler.jsonc` and `src/worker.js` for the Cloudflare **Workers** Git deployment workflow already used by the owner. The application combines Worker static assets (`dist/`) with fixed `/api/tiles/*` and `/api/dem/ctx` routes. The existing `functions/` directory continues to support **Pages** deployments.
+
+### Workers Git deployment
+- Root: repository root (`/`)
+- Build: `npm run build`
+- Deploy: `npx wrangler deploy`
+- Production branch: `main`
+- No secrets are required for public NASA/USGS tiles.
+- The Worker has a static-asset binding `ASSETS` and only intercepts `/api/*` routes.
+- After deployment confirm the URL and test: map background, toggle CTX detail, change opacity, inspect coordinates, and **Load numerical terrain**.
+- The numeric DEM endpoint is an on-demand 9.3MB USGS GeoTIFF download, not a map tile or a forecast. This can fail if Cloudflare cannot reach the public USGS host. Users may download the official GeoTIFF from the cited USGS site and upload it locally; metadata are validated, but local-file provenance cannot be cryptographically attested.
+- Browser GeoTIFF parsing uses geotiff.js 2.1.0 loaded on demand from jsDelivr, rather than shipping a large decoder to every map visitor. If the CDN is blocked, a clear error is shown.
+
+### Science limitation
+Map imagery is historical, not real-time observation. The 20m DEM supports numeric elevation and **3×3 derived slopes** only where source pixels are present. It does **not** validate astronaut travel, fatigue, radiation, Mars weather or navigation safety. Overlay footprints are approximate rectangles from published bounds, not per-pixel quality masks.
+
+### Troubleshooting
+If you see the numerical DEM status `HTTP 404`, inspect the Worker route deployment; it means `/api/dem/ctx` isn't being served. `HTTP 502` means both official download sources failed. The local file upload remains available. If NASA image tiles load but the DEM doesn't, the image and numerical data services are independent; don't mislabel image tiles as elevation values.
